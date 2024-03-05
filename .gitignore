@@ -1,0 +1,7 @@
+*.wbt
+*.wbproj
+*.ply
+
+.idea
+__pycache__
+temp
