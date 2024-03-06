@@ -202,7 +202,7 @@ def astar(binary_map, start, end):
             if neighbor in visited:
                 continue
 
-            tentative_g_score = distances[current_node] + calculate_distance_astar(binary_map, current_node, neighbor)
+            tentative_g_score = distances[current_node] + calculate_distance_astar(current_node, neighbor)
             if tentative_g_score < distances.get(neighbor, float('infinity')):
                 path[neighbor] = current_node
                 distances[neighbor] = tentative_g_score
@@ -223,9 +223,16 @@ def astar(binary_map, start, end):
     return distances[end], shortest_path
 
 
-def calculate_distance_astar(map_handled, node1, node2):
-    # Simplified distance calculation for A*; ignores height difference for this example
-    return np.linalg.norm(np.array(node1) - np.array(node2))
+def calculate_distance_astar(node1, node2):
+    # 计算两个节点之间的实际移动成本
+    dx = abs(node1[0] - node2[0])
+    dy = abs(node1[1] - node2[1])
+
+    # 水平或垂直移动的成本设置为1，对角移动的成本设置为sqrt(2)
+    if dx == 1 and dy == 1:
+        return np.sqrt(2)  # 对角移动
+    else:
+        return 1  # 水平或垂直移动
 
 
 shortest_path_full = Dijkstra_main(map_handled)
