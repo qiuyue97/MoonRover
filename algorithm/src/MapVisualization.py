@@ -143,6 +143,7 @@ def fig_printer(map_handled, binary_map, shortest_path_full, shortest_path_bin):
     ax2.scatter(*start[::-1], color='green')
     ax2.scatter(*end[::-1], color='blue')
 
+    plt.savefig(f'./fig/fig1.png')
     plt.show()
 
 
