@@ -19,6 +19,10 @@ def d_img_saver(img_depth, world_time):
     cv2.imwrite(f'./algorithm/src/fig/d_f_img/{world_time}.png', scaled_depth_image, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     return None
 
+def rgb_img_saver(img_rgb, world_time):
+    img_rgb = cv2.cvtColor(np.frombuffer(img_rgb, np.uint8).reshape((720, 1280, 4)), cv2.COLOR_BGRA2BGR)
+    cv2.imwrite(f'./algorithm/src/fig/rgb_f_img/{world_time}.png', img_rgb, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
 
 if __name__ == '__main__':
     sup = Supervisor()
@@ -68,7 +72,9 @@ if __name__ == '__main__':
 
         """仿真环境运行"""
         for _ in range(30):
-            d_img_saver(d_image_f, world_time)
+            if world_time % 640 == 0:
+                # d_img_saver(d_image_f, world_time)
+                rgb_img_saver(rgb_image_f, world_time)
             sup.step(32)
             world_time += 32  # 32ms
 
