@@ -4,6 +4,7 @@ import heapq
 import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 import sys
+import time
 
 
 folder_path = '../../mapset/'
@@ -44,6 +45,9 @@ class AStar:
         self.goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
         self.nodes_expanded = 0  # 记录扩展的节点数
         self.total_nodes = np.product(tri_map.shape)  # 计算地图上的总节点数
+        self.execution_time = None
+        self.max_elevation_change = None
+        self.total_elevation_change = None
 
     def update_progress(self):
         """更新并显示搜索进度，使用回车符覆盖之前的输出"""
@@ -107,6 +111,18 @@ class AStar:
             current = came_from[current]
             total_path.insert(0, current)
         return total_path
+
+    def calculate_elevation_changes(self, path):
+        max_elevation_change = 0
+        total_elevation_change = 0
+        for i in range(len(path) - 1):
+            elevation_diff = abs(
+                self.elevation_map[path[i + 1][0], path[i + 1][1]] - self.elevation_map[path[i][0], path[i][1]])
+            total_elevation_change += elevation_diff
+            if elevation_diff > max_elevation_change:
+                max_elevation_change = elevation_diff
+        self.max_elevation_change = max_elevation_change
+        self.total_elevation_change = total_elevation_change
 
 
 class Dijkstra(AStar):
@@ -186,56 +202,62 @@ class AStarWithPun(AStarWithH):
         return None  # 如果没有找到路径，则返回None
 
 
+def plot_paths(elevation_map, paths_info, title):
+    """
+    绘制和比较不同算法得到的路径。
+    :param elevation_map: 高程图。
+    :param paths_info: 包含路径数据和相关信息的列表，格式为[(path, color, label), ...]。
+    :param title: 图表的标题。
+    """
+    np_start = (int(250 - start[1] * 10), int(250 + start[0] * 10))
+    np_goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
+    plt.figure(figsize=(10, 10))
+    plt.imshow(elevation_map, cmap='terrain')
+    for path, color, label in paths_info:
+        plt.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
+    plt.scatter([np_start[1], np_goal[1]], [np_start[0], np_goal[0]], color=['black', 'yellow'], zorder=5, label='Start/Goal')
+    plt.legend()
+    plt.title(title)
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.show()
+
+
 if __name__ == '__main__':
-    # 假设map_handler已正确返回高程地图和三值地图
     high_map, tri_map = map_handler(folder_path)
-    elevation_map = high_map[0]
-    tri_map = tri_map[0]
     start = [10, -15]  # 起始坐标
     goal = [-15, 15]   # 目标坐标
-
-    # AStar
-    print("开始查找：AStar")
-    a_star = AStar(elevation_map, tri_map, start, goal)
-    path_a_star = a_star.find_path()
-
-    # Dijkstra
-    print("\n开始查找：Dijkstra")
-    dijkstra = Dijkstra(elevation_map, tri_map, start, goal)
-    path_dijkstra = dijkstra.find_path()
-
-    # BFS
-    print("\n开始查找：BFS")
-    bfs = BFS(elevation_map, tri_map, start, goal)
-    path_bfs = bfs.find_path()
-
-    # AStarWithH
-    print("\n开始查找：AStarWithH")
-    a_star_with_h = AStarWithH(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0)
-    path_a_star_with_h = a_star_with_h.find_path()
-
-    # AStarWithPun
-    print("\n开始查找：AStarWithPun")
-    a_star_with_pun = AStarWithPun(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0)
-    path_a_star_with_pun = a_star_with_pun.find_path()
-
-    # 绘制第一张图（AStar, Dijkstra, BFS）
-    plt.figure(figsize=(10, 10))
-    plt.imshow(elevation_map, cmap='terrain')
-    plt.plot([p[1] for p in path_a_star], [p[0] for p in path_a_star], color='red', label='AStar')
-    plt.plot([p[1] for p in path_dijkstra], [p[0] for p in path_dijkstra], color='green', label='Dijkstra')
-    plt.plot([p[1] for p in path_bfs], [p[0] for p in path_bfs], color='blue', label='BFS')
-    plt.scatter([a_star.start[1], a_star.goal[1]], [a_star.start[0], a_star.goal[0]], color=['black', 'yellow'])
-    plt.legend()
-    plt.title('Paths using AStar, Dijkstra, and BFS')
-    plt.show()
-
-    # 绘制第二张图（AStarWithH, AStarWithPun）
-    plt.figure(figsize=(10, 10))
-    plt.imshow(elevation_map, cmap='terrain')
-    plt.plot([p[1] for p in path_a_star_with_h], [p[0] for p in path_a_star_with_h], color='magenta', label='AStarWithH')
-    plt.plot([p[1] for p in path_a_star_with_pun], [p[0] for p in path_a_star_with_pun], color='cyan', label='AStarWithPun')
-    plt.scatter([a_star.start[1], a_star.goal[1]], [a_star.start[0], a_star.goal[0]], color=['black', 'yellow'])
-    plt.legend()
-    plt.title('Paths using AStarWithH and AStarWithPun')
-    plt.show()
+    for elevation_map, tri_map in zip(high_map, tri_map):
+        algorithms = {
+            "AStar": AStar(elevation_map, tri_map, start, goal),
+            "Dijkstra": Dijkstra(elevation_map, tri_map, start, goal),
+            "BFS": BFS(elevation_map, tri_map, start, goal),
+            "AStarWithH": AStarWithH(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0),
+            "AStarWithPun": AStarWithPun(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0),
+        }
+        # 存储路径和相关信息
+        paths_info_group1 = []  # 对于AStar, Dijkstra, BFS
+        paths_info_group2 = []  # 对于AStarWithH, AStarWithPun
+        colors = ['red', 'green', 'blue', 'magenta', 'cyan']
+        i = 0
+        for name, algorithm in algorithms.items():
+            print(f"\n开始查找：{name}")
+            start_time = time.time()
+            path = algorithm.find_path()
+            end_time = time.time()
+            execution_time = end_time - start_time
+            algorithm.calculate_elevation_changes(path)
+            print(f"\n路径规划长度: {len(path)}")
+            print(f"计算时间: {execution_time:.4f}秒")
+            print(f"扩展节点数: {algorithm.nodes_expanded}")
+            print(f"路径最大高程差: {algorithm.max_elevation_change}")
+            print(f"路径累计高程差: {algorithm.total_elevation_change}")
+            if name in ["AStar", "Dijkstra", "BFS"]:
+                paths_info_group1.append((path, colors[i], name))
+            else:
+                paths_info_group2.append((path, colors[i], name))
+            i += 1
+        # 绘制第一组路径（AStar, Dijkstra, BFS）
+        plot_paths(tri_map, paths_info_group1, 'Paths using AStar, Dijkstra, and BFS')
+        # 绘制第二组路径（AStarWithH, AStarWithPun）
+        plot_paths(tri_map, paths_info_group2, 'Paths using AStarWithH and AStarWithPun')
