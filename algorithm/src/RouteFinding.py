@@ -3,6 +3,7 @@ import numpy as np
 import heapq
 import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
+import sys
 
 
 folder_path = '../../mapset/'
@@ -42,6 +43,13 @@ class AStar:
         self.start = (int(250 - start[1] * 10), int(250 + start[0] * 10))
         self.goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
         self.nodes_expanded = 0  # 记录扩展的节点数
+        self.total_nodes = np.product(tri_map.shape)  # 计算地图上的总节点数
+
+    def update_progress(self):
+        """更新并显示搜索进度，使用回车符覆盖之前的输出"""
+        progress_percentage = self.nodes_expanded / self.total_nodes * 100
+        sys.stdout.write(f"\r当前搜索进度: {progress_percentage:.2f}%")
+        sys.stdout.flush()
 
     def g(self, current, neighbor):
         """从起点到当前节点的实际成本"""
@@ -72,6 +80,9 @@ class AStar:
 
         while open_set:
             current = heapq.heappop(open_set)[2]
+
+            # 更新并显示进度
+            self.update_progress()
 
             if current == self.goal:
                 return self.reconstruct_path(came_from, current)
@@ -130,28 +141,11 @@ class AStarWithH(AStar):
         return np.sqrt(d_flat + self.delta * d_height)
 
 
-class AStarWithPun(AStar):
+class AStarWithPun(AStarWithH):
     def __init__(self, elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0):
-        super().__init__(elevation_map, tri_map, start, goal)
-        self.delta = delta
-        self.lambda_val = lambda_val
+        super().__init__(elevation_map, tri_map, start, goal, delta, lambda_val)
         self.h_bar = np.mean(self.elevation_map)
         self.grad_x, self.grad_y = np.gradient(elevation_map)
-
-    def g(self, current, neighbor):
-        """从起点到当前节点的实际成本"""
-        h_current = self.elevation_map[current[0], current[1]]
-        h_neighbor = self.elevation_map[neighbor[0], neighbor[1]]
-        d_height = (h_neighbor - h_current) ** self.lambda_val
-        return np.sqrt((current[0] - neighbor[0]) ** 2 + (current[1] - neighbor[1]) ** 2 + self.delta * d_height)
-
-    def h(self, current, goal):
-        """从当前节点到终点的估计成本"""
-        d_flat = (goal[0] - current[0])**2 + (goal[1] - current[1])**2
-        h_current = self.elevation_map[current[0], current[1]]
-        h_goal = self.elevation_map[goal[0], goal[1]]
-        d_height = (h_goal - h_current) ** self.lambda_val
-        return np.sqrt(d_flat + self.delta * d_height)
 
     def o(self, current):
         """计算障碍物距离成本函数"""
@@ -171,6 +165,9 @@ class AStarWithPun(AStar):
         while open_set:
             current = heapq.heappop(open_set)[2]
 
+            # 更新并显示进度
+            self.update_progress()
+
             if current == self.goal:
                 return self.reconstruct_path(came_from, current)
 
@@ -188,13 +185,57 @@ class AStarWithPun(AStar):
 
         return None  # 如果没有找到路径，则返回None
 
-if __name__ == '__main__':
-    high_map, tri_map = map_handler(folder_path)
-    testfinder = AStarWithPun(high_map[0], tri_map[0], [10, -15], [-15, 15])
-    path = testfinder.find_path()
 
-    plt.imshow(high_map[0], cmap='terrain')
-    plt.plot([p[1] for p in path], [p[0] for p in path], color='red')  # 注意x，y坐标的顺序
-    plt.scatter([testfinder.start[1], testfinder.goal[1]], [testfinder.start[0], testfinder.goal[0]], color=['green', 'blue'])  # 起点绿色，终点蓝色
-    plt.title('Path from Start (Green) to Goal (Blue)')
+if __name__ == '__main__':
+    # 假设map_handler已正确返回高程地图和三值地图
+    high_map, tri_map = map_handler(folder_path)
+    elevation_map = high_map[0]
+    tri_map = tri_map[0]
+    start = [10, -15]  # 起始坐标
+    goal = [-15, 15]   # 目标坐标
+
+    # AStar
+    print("开始查找：AStar")
+    a_star = AStar(elevation_map, tri_map, start, goal)
+    path_a_star = a_star.find_path()
+
+    # Dijkstra
+    print("\n开始查找：Dijkstra")
+    dijkstra = Dijkstra(elevation_map, tri_map, start, goal)
+    path_dijkstra = dijkstra.find_path()
+
+    # BFS
+    print("\n开始查找：BFS")
+    bfs = BFS(elevation_map, tri_map, start, goal)
+    path_bfs = bfs.find_path()
+
+    # AStarWithH
+    print("\n开始查找：AStarWithH")
+    a_star_with_h = AStarWithH(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0)
+    path_a_star_with_h = a_star_with_h.find_path()
+
+    # AStarWithPun
+    print("\n开始查找：AStarWithPun")
+    a_star_with_pun = AStarWithPun(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0)
+    path_a_star_with_pun = a_star_with_pun.find_path()
+
+    # 绘制第一张图（AStar, Dijkstra, BFS）
+    plt.figure(figsize=(10, 10))
+    plt.imshow(elevation_map, cmap='terrain')
+    plt.plot([p[1] for p in path_a_star], [p[0] for p in path_a_star], color='red', label='AStar')
+    plt.plot([p[1] for p in path_dijkstra], [p[0] for p in path_dijkstra], color='green', label='Dijkstra')
+    plt.plot([p[1] for p in path_bfs], [p[0] for p in path_bfs], color='blue', label='BFS')
+    plt.scatter([a_star.start[1], a_star.goal[1]], [a_star.start[0], a_star.goal[0]], color=['black', 'yellow'])
+    plt.legend()
+    plt.title('Paths using AStar, Dijkstra, and BFS')
+    plt.show()
+
+    # 绘制第二张图（AStarWithH, AStarWithPun）
+    plt.figure(figsize=(10, 10))
+    plt.imshow(elevation_map, cmap='terrain')
+    plt.plot([p[1] for p in path_a_star_with_h], [p[0] for p in path_a_star_with_h], color='magenta', label='AStarWithH')
+    plt.plot([p[1] for p in path_a_star_with_pun], [p[0] for p in path_a_star_with_pun], color='cyan', label='AStarWithPun')
+    plt.scatter([a_star.start[1], a_star.goal[1]], [a_star.start[0], a_star.goal[0]], color=['black', 'yellow'])
+    plt.legend()
+    plt.title('Paths using AStarWithH and AStarWithPun')
     plt.show()
