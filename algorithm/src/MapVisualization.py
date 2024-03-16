@@ -2,7 +2,7 @@ import numpy as np
 import heapq
 import matplotlib.pyplot as plt
 
-moon_map = np.load('../../map.npy')
+moon_map = np.load('../../mapset/map.npy')
 np.set_printoptions(suppress=True)
 map_handled = moon_map[:, :, 3]
 threshold = 2.5
