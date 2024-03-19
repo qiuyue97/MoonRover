@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 import sys
 import time
+import json
 
 
 folder_path = '../../mapset/'
@@ -30,6 +31,7 @@ file_dicts = [
         "goal": [0, 10],
     },
 ]
+json_path = 'results.json'
 
 
 def map_handler(path, file_dicts, pun_threshold=20):
@@ -249,27 +251,60 @@ class AStarWithPun(AStarWithH):
         return None  # 如果没有找到路径，则返回None
 
 
-def plot_paths(elevation_map, paths_info, np_start, np_goal, title):
+def plot_paths(elevation_map, paths_infos, np_start, np_goal):
     """
     绘制和比较路径。
-    :param elevation_map: 高程图。
-    :param paths_info: 包含路径数据和相关信息的列表，格式为[(path, color, label), ...]。
-    :param title: 图表的标题。
     """
-    plt.figure(figsize=(10, 10))
-    plt.imshow(elevation_map, cmap='terrain')
-    for path, color, label in paths_info:
-        plt.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
-    plt.scatter([np_start[1], np_goal[1]], [np_start[0], np_goal[0]], color=['black', 'yellow'], zorder=5, label='Start/Goal')
-    plt.legend()
-    plt.title(title)
-    plt.xlabel('X Coordinate')
-    plt.ylabel('Y Coordinate')
-    plt.show()
+    colors = ['red', 'green', 'blue', 'magenta', 'cyan']
+    paths_infos_group1 = []
+    paths_infos_group2 = []
+    i = 0
+    for path, label in paths_infos:
+        if path is None:
+            i += 1
+            continue
+        if label in ["AStar", "Dijkstra", "BFS"]:
+            paths_infos_group1.append((path, colors[i], label))
+        else:
+            paths_infos_group2.append((path, colors[i], label))
+        i += 1
+    plt.figure(figsize=(20, 10))
+
+    ax1 = plt.subplot(1, 2, 1)
+    ax1.imshow(elevation_map, cmap='viridis')
+    ax1.axis('on')
+    ax1.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax1.set_xticks(np.arange(-0.5, 500, 25), minor=True)
+    ax1.set_yticks(np.arange(-0.5, 500, 25), minor=True)
+    ax1.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+    for path, color, label in paths_infos_group1:
+        ax1.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
+    ax1.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
+    ax1.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
+    ax1.legend()
+    ax1.set_title('Paths using AStar, Dijkstra, and BFS')
+
+    ax2 = plt.subplot(1, 2, 2)
+    ax2.imshow(elevation_map, cmap='viridis')
+    ax2.axis('on')
+    ax2.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax2.set_xticks(np.arange(-0.5, 500, 25), minor=True)
+    ax2.set_yticks(np.arange(-0.5, 500, 25), minor=True)
+    ax2.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+    for path, color, label in paths_infos_group2:
+        ax2.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
+    ax2.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
+    ax2.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
+    ax2.legend()
+    ax2.set_title('Paths using AStarWithH and AStarWithPun')
+    plt.savefig(f'./fig/map-{map_id}.png')
+    # plt.show()
 
 
 if __name__ == '__main__':
+    ana_dict = []
     map_set, tri_map_set, map_infos = map_handler(folder_path, file_dicts, pun_threshold=20)
+    map_id = 0
     for elevation_map, tri_map, map_info in zip(map_set, tri_map_set, map_infos):
         start = map_info["np_start"]
         goal = map_info["np_goal"]
@@ -280,13 +315,9 @@ if __name__ == '__main__':
             "AStarWithH": AStarWithH(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0),
             "AStarWithPun": AStarWithPun(elevation_map, tri_map, start, goal, delta=20.0, lambda_val=2.0),
         }
-        # 存储路径和相关信息
-        paths_info_group1 = []  # 对于AStar, Dijkstra, BFS
-        paths_info_group2 = []  # 对于AStarWithH, AStarWithPun
-        colors = ['red', 'green', 'blue', 'magenta', 'cyan']
-        i = 0
+        path_infos = []
         for name, algorithm in algorithms.items():
-            print(f"\n开始查找：{name}")
+            print(f"\n当前地图ID：{map_id}\n开始查找：{name}")
             start_time = time.time()
             path = algorithm.find_path()
             end_time = time.time()
@@ -298,16 +329,21 @@ if __name__ == '__main__':
                 print(f"扩展节点数: {algorithm.nodes_expanded}")
                 print(f"路径最大高程差: {algorithm.max_elevation_change}")
                 print(f"路径累计高程差: {algorithm.total_elevation_change}")
+                ana_dict.append(
+                    {
+                        "地图编号": map_id,
+                        "算法名称": name,
+                        "路径规划长度": len(path),
+                        "计算时间": execution_time,
+                        "扩展节点数": algorithm.nodes_expanded,
+                        "路径最大高程差": algorithm.max_elevation_change,
+                        "路径累计高程差": algorithm.total_elevation_change,
+                    }
+                )
             else:
                 print("\n未找到路径")
-            if name in ["AStar", "Dijkstra", "BFS"]:
-                if path is not None:
-                    paths_info_group1.append((path, colors[i], name))
-            else:
-                if path is not None:
-                    paths_info_group2.append((path, colors[i], name))
-            i += 1
-        # 绘制第一组路径（AStar, Dijkstra, BFS）
-        plot_paths(elevation_map, paths_info_group1, start, goal, 'Paths using AStar, Dijkstra, and BFS')
-        # 绘制第二组路径（AStarWithH, AStarWithPun）
-        plot_paths(elevation_map, paths_info_group2, start, goal, 'Paths using AStarWithH and AStarWithPun')
+            path_infos.append((path, name))
+        plot_paths(elevation_map, path_infos, start, goal)
+        map_id += 1
+    with open(json_path, 'w', encoding='utf-8') as file:
+        json.dump(ana_dict, file, ensure_ascii=False, indent=4)
