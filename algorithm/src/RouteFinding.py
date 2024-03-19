@@ -8,41 +8,88 @@ import time
 
 
 folder_path = '../../mapset/'
+file_dicts = [
+    {
+        "file": 'map.npy',
+        "start": [10, -15],
+        "goal": [-15, 15],
+    },
+    {
+        "file": 'TestMap-3.npy',
+        "start": [11, -14],
+        "goal": [15, 15],
+    },
+    {
+        "file": 'TestMap4.npy',
+        "start": [-11, 18],
+        "goal": [15, -15],
+    },
+    {
+        "file": 'TestMap5.npy',
+        "start": [-15, -20],
+        "goal": [0, 10],
+    },
+]
 
 
-def map_handler(path, obs_threshold=2, pun_threshold=20):
+def map_handler(path, file_dicts, pun_threshold=20):
     map_set = []
-    for file in os.listdir(path):
-        if file.endswith('.npy'):
-            file_path = os.path.join(path, file)
-            map_data = np.load(file_path)
-            map_set.append(map_data)
-
-    high_map = []
-    tri_map = []
-    for map in map_set:
-        high_map.append(map[:, :, 3])
-        # 定义障碍物
-        obstacles = np.where(map[:, :, 3] > obs_threshold, True, False)
-        # 计算到最近非障碍物点的距离
-        distances = distance_transform_edt(~obstacles)
-        # 定义惩罚点为距离小于惩罚阈值的点
-        pun = (distances > 0) & (distances < pun_threshold)
-        # 创建三值地图，障碍物点为2，危险点为1，其他为0
-        tri_map_cur = np.zeros_like(map[:, :, 3], dtype=int)
-        tri_map_cur[obstacles] = 2  # 障碍物点
-        tri_map_cur[pun] = 1  # 危险点
-        tri_map.append(tri_map_cur)
-
-    return high_map, tri_map
+    tri_map_set = []
+    map_infos = []
+    for file_dict in file_dicts:
+        file_path = os.path.join(path, file_dict["file"])
+        if os.path.exists(file_path):
+            map_data = np.load(file_path)  # 加载地图数据
+            start = file_dict["start"]
+            goal = file_dict["goal"]
+            map_set.append(map_data[:, :, 3])
+            max_elevation = np.max(map_data[:, :, 3])
+            min_elevation = np.min(map_data[:, :, 3])
+            avg_elevation = np.mean(map_data[:, :, 3])
+            if file_dict["start"] is not None and file_dict["goal"] is not None:
+                np_start = (int(250 - start[1] * 10), int(250 + start[0] * 10))
+                np_goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
+                start_elevation = map_data[np_start[0], np_start[1], 3]
+                goal_elevation = map_data[np_goal[0], np_goal[1], 3]
+            else:
+                np_start = None
+                np_goal = None
+                start_elevation = None
+                goal_elevation = None
+            map_info = {
+                "file": file_dict["file"],
+                "max_elevation": max_elevation,
+                "min_elevation": min_elevation,
+                "avg_elevation": avg_elevation,
+                "start": start,
+                "np_start": np_start,
+                "start_elevation": start_elevation,
+                "goal": goal,
+                "np_goal": np_goal,
+                "goal_elevation": goal_elevation,
+                "obs_threshold": max(start_elevation, goal_elevation) + 1.3
+            }
+            map_infos.append(map_info)
+            # 定义障碍物
+            obstacles = np.where(map_data[:, :, 3] > map_info["obs_threshold"], True, False)
+            # 计算到最近非障碍物点的距离
+            distances = distance_transform_edt(~obstacles)
+            # 定义惩罚点为距离小于惩罚阈值的点
+            pun = (distances > 0) & (distances < pun_threshold)
+            # 创建三值地图，障碍物点为2，危险点为1，其他为0
+            tri_map = np.zeros_like(map_data[:, :, 3], dtype=int)
+            tri_map[obstacles] = 2  # 障碍物点
+            tri_map[pun] = 1  # 危险点
+            tri_map_set.append(tri_map)
+    return map_set, tri_map_set, map_infos
 
 
 class AStar:
     def __init__(self, elevation_map, tri_map, start, goal):
         self.elevation_map = elevation_map / 1.417379975200399 * 10
         self.tri_map = tri_map
-        self.start = (int(250 - start[1] * 10), int(250 + start[0] * 10))
-        self.goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
+        self.start = start
+        self.goal = goal
         self.nodes_expanded = 0  # 记录扩展的节点数
         self.total_nodes = np.product(tri_map.shape)  # 计算地图上的总节点数
         self.execution_time = None
@@ -202,15 +249,13 @@ class AStarWithPun(AStarWithH):
         return None  # 如果没有找到路径，则返回None
 
 
-def plot_paths(elevation_map, paths_info, title):
+def plot_paths(elevation_map, paths_info, np_start, np_goal, title):
     """
-    绘制和比较不同算法得到的路径。
+    绘制和比较路径。
     :param elevation_map: 高程图。
     :param paths_info: 包含路径数据和相关信息的列表，格式为[(path, color, label), ...]。
     :param title: 图表的标题。
     """
-    np_start = (int(250 - start[1] * 10), int(250 + start[0] * 10))
-    np_goal = (int(250 - goal[1] * 10), int(250 + goal[0] * 10))
     plt.figure(figsize=(10, 10))
     plt.imshow(elevation_map, cmap='terrain')
     for path, color, label in paths_info:
@@ -224,10 +269,10 @@ def plot_paths(elevation_map, paths_info, title):
 
 
 if __name__ == '__main__':
-    high_map, tri_map = map_handler(folder_path)
-    start = [10, -15]  # 起始坐标
-    goal = [-15, 15]   # 目标坐标
-    for elevation_map, tri_map in zip(high_map, tri_map):
+    map_set, tri_map_set, map_infos = map_handler(folder_path, file_dicts, pun_threshold=20)
+    for elevation_map, tri_map, map_info in zip(map_set, tri_map_set, map_infos):
+        start = map_info["np_start"]
+        goal = map_info["np_goal"]
         algorithms = {
             "AStar": AStar(elevation_map, tri_map, start, goal),
             "Dijkstra": Dijkstra(elevation_map, tri_map, start, goal),
@@ -246,18 +291,23 @@ if __name__ == '__main__':
             path = algorithm.find_path()
             end_time = time.time()
             execution_time = end_time - start_time
-            algorithm.calculate_elevation_changes(path)
-            print(f"\n路径规划长度: {len(path)}")
-            print(f"计算时间: {execution_time:.4f}秒")
-            print(f"扩展节点数: {algorithm.nodes_expanded}")
-            print(f"路径最大高程差: {algorithm.max_elevation_change}")
-            print(f"路径累计高程差: {algorithm.total_elevation_change}")
-            if name in ["AStar", "Dijkstra", "BFS"]:
-                paths_info_group1.append((path, colors[i], name))
+            if path is not None:
+                algorithm.calculate_elevation_changes(path)
+                print(f"\n路径规划长度: {len(path)}")
+                print(f"计算时间: {execution_time:.4f}秒")
+                print(f"扩展节点数: {algorithm.nodes_expanded}")
+                print(f"路径最大高程差: {algorithm.max_elevation_change}")
+                print(f"路径累计高程差: {algorithm.total_elevation_change}")
             else:
-                paths_info_group2.append((path, colors[i], name))
+                print("\n未找到路径")
+            if name in ["AStar", "Dijkstra", "BFS"]:
+                if path is not None:
+                    paths_info_group1.append((path, colors[i], name))
+            else:
+                if path is not None:
+                    paths_info_group2.append((path, colors[i], name))
             i += 1
         # 绘制第一组路径（AStar, Dijkstra, BFS）
-        plot_paths(tri_map, paths_info_group1, 'Paths using AStar, Dijkstra, and BFS')
+        plot_paths(elevation_map, paths_info_group1, start, goal, 'Paths using AStar, Dijkstra, and BFS')
         # 绘制第二组路径（AStarWithH, AStarWithPun）
-        plot_paths(tri_map, paths_info_group2, 'Paths using AStarWithH and AStarWithPun')
+        plot_paths(elevation_map, paths_info_group2, start, goal, 'Paths using AStarWithH and AStarWithPun')
