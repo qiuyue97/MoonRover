@@ -5,7 +5,7 @@
 import numpy as np
 from algorithm.builder import build_temp_environment
 from algorithm.map_handler import map_handler
-from algorithm.route_planer import Dijkstra_main, Baka_main
+from algorithm.route_planer import Dijkstra_main, action_judge
 from algorithm.obstacles_avoider import avoider_main
 from algorithm.box_finder import finder_main, point_clustering
 
@@ -15,7 +15,7 @@ class rover_controller(object):
         self.pos_A = pos_A
         self.area_B = area_B
 
-    def step(self, rgb_image_f, rgb_image_b, d_image_f, d_image_b, world_time):
+    def step(self, rgb_image_f, rgb_image_b, d_image_f, d_image_b, world_time, car_status, rotation_flag):
         """
         功能：进行一步决策推理，请根据输入自行判断是否、如何进行决策推理
         输入：
@@ -37,62 +37,54 @@ class rover_controller(object):
         if world_time == 0:
             build_temp_environment()
             map_handler(self.map)
-            car_status = np.array([0, np.array(self.pos_A).astype(np.float64)], dtype=object)
-            # actions = Baka_main(car_status, self.area_B)  # 八嘎寻路
-            actions = Dijkstra_main(car_status, self.area_B) # 迪杰斯特拉寻路
-            # car_status = np.array([0, np.array(self.area_B[:2]).astype(np.float64)], dtype=object) # 测试用
-            # actions = ['ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead'] # 测试用
-            np.save('./algorithm/temp/car_status', car_status)
+            path = Dijkstra_main(car_status, self.area_B) # 迪杰斯特拉寻路
+            rest_path, actions = action_judge(path, car_status, scaling_ratio=25)
+            np.save('./algorithm/temp/rest_path', rest_path)
             np.save('./algorithm/temp/actions', actions)
             np.save('./algorithm/temp/tar_all', tar_all)
         else:
-            car_status = np.load('./algorithm/temp/car_status.npy', allow_pickle=True)
+            rest_path = np.load('./algorithm/temp/rest_path.npy')
             actions = np.load('./algorithm/temp/actions.npy')
             tar_all = np.load('./algorithm/temp/tar_all.npy').tolist()
-        if now_step <= len(actions):
-            # 若行动表后续步数大于2且后3步均为前进，则启动避障判断器
-            if (len(actions) - now_step >= 2) & (all(a==b for a, b in zip(actions[now_step - 1:now_step + 2], ['ahead', 'ahead', 'ahead']))):
-                o_flag = avoider_main(d_image_f, now_step, self.area_B)
-            else:
-                o_flag = False
+        if len(actions) == 0 and len(rest_path) > 0:
+            rest_path, actions = action_judge(rest_path, car_status, scaling_ratio=25)
+            np.save('./algorithm/temp/rest_path', rest_path)
+        # 根据行动表行动
+        if len(actions) > 0:
+            if d_image_f is not None and rotation_flag is False:
+                o_flag = avoider_main(car_status, d_image_f, now_step, self.area_B)
             # 若发现障碍物完成避障算法，重新加载行动表
-            if o_flag is True:
-                actions = np.load('./algorithm/temp/actions.npy')
+                if o_flag is True:
+                    actions = np.load('./algorithm/temp/actions.npy')
             # 调用兴趣目标发现主程序
             tar_all.extend(finder_main(rgb_image_f, d_image_f, car_status, now_step, 'f'))
             tar_all.extend(finder_main(rgb_image_b, d_image_b, car_status, now_step, 'b'))
             np.save('./algorithm/temp/tar_all', tar_all)
-            # 根据行动表行动
-            if actions[int(now_step - 1)] == 'left':
+            if actions[0] == 'left':
                 motor_velocity = [-1, 1, -1, 1]
-                car_status[0] += np.radians(18.95)
-                np.save('./algorithm/temp/car_status', car_status)
-                print(f'预计需要{len(actions)}步，现在是第{now_step}步，执行左转命令，本步完成后小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
+                np.save('./algorithm/temp/actions', actions[1:])
+                print(f'现在是第{now_step}步，执行左转命令，小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
                       f'位于({car_status[1][0]:.4f}, {car_status[1][1]:.4f})。')
-            elif actions[int(now_step - 1)] == 'right':
+            elif actions[0] == 'right':
                 motor_velocity = [1, -1, 1, -1]
-                car_status[0] -= np.radians(18.95)
-                np.save('./algorithm/temp/car_status', car_status)
-                print(f'预计需要{len(actions)}步，现在是第{now_step}步，执行右转命令，本步完成后小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
+                np.save('./algorithm/temp/actions', actions[1:])
+                print(f'现在是第{now_step}步，执行右转命令，小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
                       f'位于({car_status[1][0]:.4f}, {car_status[1][1]:.4f})。')
-            elif actions[int(now_step - 1)] == 'ahead':
+            elif actions[0] == 'ahead':
                 motor_velocity = [1, 1, 1, 1]
-                car_status[1] += (1 / 11) * np.array([-np.sin(car_status[0]), np.cos(car_status[0])])
-                np.save('./algorithm/temp/car_status', car_status)
-                print(f'预计需要{len(actions)}步，现在是第{now_step}步，执行直行命令，本步完成后小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
+                np.save('./algorithm/temp/actions', actions[1:])
+                print(f'现在是第{now_step}步，执行直行命令，小车与Y轴夹角{np.degrees(car_status[0]):.2f}度，'
                       f'位于({car_status[1][0]:.4f}, {car_status[1][1]:.4f})。')
-        elif now_step <= len(actions) + 20:
-            motor_velocity = [-1, 1, -1, 1]
-            car_status[0] += np.radians(18.95)
-            np.save('./algorithm/temp/car_status', car_status)
-            tar_all.extend(finder_main(rgb_image_f, d_image_f, car_status, now_step, 'f'))
-            tar_all.extend(finder_main(rgb_image_b, d_image_b, car_status, now_step, 'b'))
-            np.save('./algorithm/temp/tar_all', tar_all)
-            print(f'正在检测目标区域周围兴趣点({now_step - len(actions)} / 20)...')
         else:
-            motor_velocity = [0, 0, 0, 0]
-            target_pos = point_clustering(tar_all)
-            print('任务完成，发现的兴趣目标list如下：\n', target_pos)
-            done = True
+            if rotation_flag is False:
+                motor_velocity = [-1, 1, -1, 1]
+                actions = np.concatenate((actions, np.array(['left'] * 19)))
+                np.save('./algorithm/temp/actions', actions[1:])
+                rotation_flag = True
+            else:
+                motor_velocity = [0, 0, 0, 0]
+                target_pos = point_clustering(tar_all)
+                print('任务完成，发现的兴趣目标list如下：\n', target_pos)
+                done = True
 
-        return motor_velocity, done, target_pos
+        return motor_velocity, done, target_pos, rotation_flag

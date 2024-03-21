@@ -2,6 +2,7 @@ import os
 import numpy as np
 import heapq
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
 from scipy.ndimage import distance_transform_edt
 import sys
 import time
@@ -251,7 +252,7 @@ class AStarWithPun(AStarWithH):
         return None  # 如果没有找到路径，则返回None
 
 
-def plot_paths(elevation_map, paths_infos, np_start, np_goal):
+def plot_paths(elevation_map, tri_map, paths_infos, np_start, np_goal):
     """
     绘制和比较路径。
     """
@@ -268,10 +269,13 @@ def plot_paths(elevation_map, paths_infos, np_start, np_goal):
         else:
             paths_infos_group2.append((path, colors[i], label))
         i += 1
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, 20))
 
-    ax1 = plt.subplot(1, 2, 1)
-    ax1.imshow(elevation_map, cmap='viridis')
+    ax1 = plt.subplot(2, 2, 1)
+    cmap1 = ListedColormap(['white', 'black'])
+    bounds1 = [-0.5, 1.5, 2.5]
+    norm1 = BoundaryNorm(bounds1, cmap1.N)
+    ax1.imshow(tri_map, cmap=cmap1, norm=norm1)
     ax1.axis('on')
     ax1.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
     ax1.set_xticks(np.arange(-0.5, 500, 25), minor=True)
@@ -284,8 +288,11 @@ def plot_paths(elevation_map, paths_infos, np_start, np_goal):
     ax1.legend()
     ax1.set_title('Paths using AStar, Dijkstra, and BFS')
 
-    ax2 = plt.subplot(1, 2, 2)
-    ax2.imshow(elevation_map, cmap='viridis')
+    ax2 = plt.subplot(2, 2, 2)
+    cmap2 = ListedColormap(['white', 'gray', 'black'])
+    bounds2 = [-0.5, 0.5, 1.5, 2.5]
+    norm2 = BoundaryNorm(bounds2, cmap2.N)
+    ax2.imshow(tri_map, cmap=cmap2, norm=norm2)
     ax2.axis('on')
     ax2.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
     ax2.set_xticks(np.arange(-0.5, 500, 25), minor=True)
@@ -297,6 +304,35 @@ def plot_paths(elevation_map, paths_infos, np_start, np_goal):
     ax2.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
     ax2.legend()
     ax2.set_title('Paths using AStarWithH and AStarWithPun')
+
+    ax3 = plt.subplot(2, 2, 3)
+    ax3.imshow(elevation_map, cmap='viridis')
+    ax3.axis('on')
+    ax3.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax3.set_xticks(np.arange(-0.5, 500, 25), minor=True)
+    ax3.set_yticks(np.arange(-0.5, 500, 25), minor=True)
+    ax3.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+    for path, color, label in paths_infos_group1:
+        ax3.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
+    ax3.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
+    ax3.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
+    ax3.legend()
+    ax3.set_title('Paths using AStar, Dijkstra, and BFS')
+
+    ax4 = plt.subplot(2, 2, 4)
+    ax4.imshow(elevation_map, cmap='viridis')
+    ax4.axis('on')
+    ax4.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
+    ax4.set_xticks(np.arange(-0.5, 500, 25), minor=True)
+    ax4.set_yticks(np.arange(-0.5, 500, 25), minor=True)
+    ax4.grid(which="minor", color="black", linestyle='-', linewidth=0.5)
+    for path, color, label in paths_infos_group2:
+        ax4.plot([p[1] for p in path], [p[0] for p in path], color=color, label=label)
+    ax4.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
+    ax4.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
+    ax4.legend()
+    ax4.set_title('Paths using AStarWithH and AStarWithPun')
+
     plt.savefig(f'./fig/map-{map_id}.png')
     # plt.show()
 
@@ -343,7 +379,7 @@ if __name__ == '__main__':
             else:
                 print("\n未找到路径")
             path_infos.append((path, name))
-        plot_paths(elevation_map, path_infos, start, goal)
+        plot_paths(elevation_map, tri_map, path_infos, start, goal)
         map_id += 1
     with open(json_path, 'w', encoding='utf-8') as file:
         json.dump(ana_dict, file, ensure_ascii=False, indent=4)

@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from algorithm.route_planer import Dijkstra_main, Baka_main
+from algorithm.route_planer import Dijkstra_main
 
 def roi_finder(depth_image_shape):
     # 指定矩形框的参数
@@ -73,7 +73,7 @@ def o_pic_saver(depth_image, now_step, center, center_depth, obstacle_points):
     # path = f'./temp/img/obstacles/{now_step}.png' # 测试用
     cv2.imwrite(path, depth_image_display)
 
-def avoider_main(depth_image, now_step, area_B):
+def avoider_main(car_status, depth_image, now_step, area_B):
     # 重塑Webots传入的深度图片
     depth_image = np.reshape(depth_image, (720, 1280))
     # 将inf值设为nan，便于后续处理
@@ -82,26 +82,14 @@ def avoider_main(depth_image, now_step, area_B):
     o_flag, center, center_depth, obstacle_points = obstacles_judger(depth_image)
     # 若发现障碍物，储存障碍物图像并启动避障
     if o_flag is True:
-        print('前方发现障碍物，正在重新规划路线...')
+        print('前方发现障碍物，正在避障...')
         o_pic_saver(depth_image, now_step, center, center_depth, obstacle_points)
-        actions = np.load('./algorithm/temp/actions.npy')
-        actions = actions[:now_step - 1]
-        actions = actions.tolist()
-        car_status = np.load('./algorithm/temp/car_status.npy', allow_pickle=True)
+        actions = []
         # 根据障碍物中心所处位置判断向左或是向右转，旋转之后行走8步避障
         if center[0] < depth_image.shape[1] // 2:
             actions.extend(['right', 'right'])
-            car_status[0] -= np.radians(18.95 * 2)
         else:
             actions.extend(['left', 'left'])
-            car_status[0] += np.radians(18.95 * 2)
         actions.extend(['ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead', 'ahead'])
-        car_status[1] += (8 / 11) * np.array([-np.sin(car_status[0]), np.cos(car_status[0])])
-        # 完成避障后重新寻路
-        # actions_extend = Baka_main(car_status, area_B) # 八嘎寻路
-        # print(f'避障程序传入完成避障后小车与Y轴夹角为{np.degrees(car_status[0]):.2f}度，'
-        #               f'位于({car_status[1][0]:.4f}, {car_status[1][1]:.4f})。')
-        actions_extend = Dijkstra_main(car_status, area_B) # 迪杰斯特拉寻路
-        actions.extend(actions_extend)
         np.save('./algorithm/temp/actions', actions)
     return o_flag

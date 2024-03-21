@@ -109,7 +109,7 @@ def find_closest_point(target_point):
 
 def result_saver(real_pos):
     counter = [0, 0, 0, 0, 0]
-    points = np.load('./algorithm/temp/tar_all.npy')
+    points = np.load('./temp/tar_all.npy')
     target_pos = point_clustering(points)
     for tar in target_pos:
         min_distance_index, min_distance = find_closest_point(tar)
@@ -144,19 +144,22 @@ def result_saver(real_pos):
     sm = plt.cm.ScalarMappable(cmap="Blues", norm=norm)
     sm.set_array([])
     plt.colorbar(sm)
-    # plt.show()
+    plt.show()
     # 获取当前时间
     now = datetime.datetime.now()
     # 格式化为月_日_时_分
     time_str = now.strftime("%m_%d_%H_%M")
     # 指定保存路径和文件名
-    save_path = os.path.join("./algorithm/result", f"{time_str}.png")
+    save_path = os.path.join("./result", f"{time_str}.png")
     plt.savefig(save_path)
-    # 打开 log.txt 文件并添加一行文字
-    with open('./algorithm/result/log_2_3.txt', 'a', encoding='utf-8') as log_file:
-        log_file.write(f'{now.strftime("%m-%d %H:%M")}小车最终落于{real_pos},与目标区域中心相距{distance.euclidean(real_pos, [-15, 15])}米，发现的兴趣点：{counter}。\n')
-    shutil.copyfile('./algorithm/temp/tar_all.npy', f'./algorithm/result/tar/{now.strftime("%m_%d_%H_%M")}.npy')
-    # 指定要删除的目录
-    dir_path = "./algorithm/temp"
-    # 使用shutil.rmtree删除指定目录及其所有内容
-    shutil.rmtree(dir_path, ignore_errors=True)
+    # # 打开 log.txt 文件并添加一行文字
+    # with open('./result/log_2_3.txt', 'a', encoding='utf-8') as log_file:
+    #     log_file.write(f'{now.strftime("%m-%d %H:%M")}小车最终落于{real_pos},与目标区域中心相距{distance.euclidean(real_pos, [-15, 15])}米，发现的兴趣点：{counter}。\n')
+    # shutil.copyfile('./algorithm/temp/tar_all.npy', f'./algorithm/result/tar/{now.strftime("%m_%d_%H_%M")}.npy')
+    # # 指定要删除的目录
+    # dir_path = "./algorithm/temp"
+    # # 使用shutil.rmtree删除指定目录及其所有内容
+    # shutil.rmtree(dir_path, ignore_errors=True)
+
+
+result_saver(np.array([-15, 15]).astype(np.float64))

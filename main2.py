@@ -4,6 +4,7 @@
 
 from controller import Camera, RangeFinder, Supervisor
 from algorithm.rover_controller import rover_controller
+from algorithm.result_saver import result_saver
 import numpy as np
 
 if __name__ == '__main__':
@@ -47,6 +48,7 @@ if __name__ == '__main__':
 
     world_time = 0
     done = False
+    rotation_flag = False
     while not done:
         """获取RGBD数据"""
         rgb_image_f = cam_f.getImage()  # 前相机获取RGB图像
@@ -54,8 +56,16 @@ if __name__ == '__main__':
         d_image_f = dep_f.getRangeImage()  # 前相机获取D图像
         d_image_b = dep_b.getRangeImage()
 
+        """获取巡视器状态"""
+        translation_field = robot.getField('translation')
+        rotation_field = robot.getField('rotation')
+        position = translation_field.getSFVec3f()
+        rotation = rotation_field.getSFRotation()
+        car_angle = -rotation[3] + np.pi / 2
+        car_status = np.array([np.arctan2(np.sin(car_angle), np.cos(car_angle)), np.array([position[0], -position[2]]).astype(np.float64)], dtype=object)
+
         """决策主程序"""
-        motor_velocity, done, target_pos = con.step(rgb_image_f, rgb_image_b, d_image_f, d_image_b, world_time)
+        motor_velocity, done, target_pos, rotation_flag = con.step(rgb_image_f, rgb_image_b, d_image_f, d_image_b, world_time, car_status, rotation_flag)
 
         """巡视器轮速控制"""
         if motor_velocity != []:
@@ -70,4 +80,3 @@ if __name__ == '__main__':
             # sup.exportImage(f"E:/py_program/simenv/real_world/{now_step}.png", 100)
             sup.step(32)
             world_time += 32  # 32ms
-

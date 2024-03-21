@@ -64,7 +64,7 @@ if __name__ == '__main__':
         d_image_b = dep_b.getRangeImage()
 
         """巡视器轮速控制"""
-        motor_velocity = [1, 1, 1, 1]
+        motor_velocity = [-1, 1, -1, 1]
         motor_lf.setVelocity(motor_velocity[0])  # 给定左前轮转速，-1~1
         motor_rf.setVelocity(motor_velocity[1])
         motor_lb.setVelocity(motor_velocity[2])
@@ -74,7 +74,15 @@ if __name__ == '__main__':
         for _ in range(30):
             if world_time % 640 == 0:
                 # d_img_saver(d_image_f, world_time)
-                rgb_img_saver(rgb_image_f, world_time)
+                # rgb_img_saver(rgb_image_f, world_time)
+                translation_field = robot.getField('translation')
+                rotation_field = robot.getField('rotation')
+                position = translation_field.getSFVec3f()
+                rotation = rotation_field.getSFRotation()
+                car_angle = -rotation[3] + np.pi / 2
+                car_status = [np.arctan2(np.sin(car_angle), np.cos(car_angle)), [position[0], -position[2]]]
+                print(f"world_time: {world_time:}\nRover's position: {car_status[1]}\nRover's rotation: {np.degrees(car_status[0])}")
+
             sup.step(32)
             world_time += 32  # 32ms
 
