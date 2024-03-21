@@ -1,6 +1,7 @@
 *.wbt
 *.wbproj
 *.ply
+*.zip
 
 .idea
 __pycache__
