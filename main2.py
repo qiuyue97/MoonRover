@@ -4,10 +4,33 @@
 
 from controller import Camera, RangeFinder, Supervisor
 from algorithm.rover_controller import rover_controller
-from algorithm.result_saver import result_saver
 import numpy as np
 
 if __name__ == '__main__':
+    file_dicts = [
+        {
+            "file": 'map.npy',
+            "start": [10, -15],
+            "goal": [-15, 15],
+        },
+        {
+            "file": 'TestMap-3.npy',
+            "start": [11, -14],
+            "goal": [15, 15],
+        },
+        {
+            "file": 'TestMap4.npy',
+            "start": [-11, 18],
+            "goal": [15, -15],
+        },
+        {
+            "file": 'TestMap5.npy',
+            "start": [-15, -20],
+            "goal": [0, 10],
+        },
+    ]
+    map_id = 1
+    map_path = file_dicts[map_id]["file"]
     sup = Supervisor()
     # sup.simulationReset()
     # sup.step(1000)
@@ -39,9 +62,9 @@ if __name__ == '__main__':
     dep_b.enable(30)
 
     """先验信息"""
-    moon_map = np.load('map.npy')
-    pos_A = [10, -15]  # 初始点的x\y坐标
-    area_B = [-15, 15, 10, 10]  # 目标区域的中心点x\y坐标、x\y宽度
+    moon_map = np.load(f'./mapset/{map_path}')
+    pos_A = file_dicts[map_id]['start']  # 初始点的x\y坐标
+    area_B = np.concatenate((file_dicts[map_id]["goal"], [10, 10]), axis=0).tolist()  # 目标区域的中心点x\y坐标、x\y宽度
 
     con = rover_controller(moon_map, pos_A, area_B)  # 决策程序实例化
 
@@ -61,7 +84,10 @@ if __name__ == '__main__':
         rotation_field = robot.getField('rotation')
         position = translation_field.getSFVec3f()
         rotation = rotation_field.getSFRotation()
-        car_angle = -rotation[3] + np.pi / 2
+        if map_path == 'TestMap-3.npy':
+            car_angle = rotation[3] + np.pi / 2
+        else:
+            car_angle = -rotation[3] + np.pi / 2
         car_status = np.array([np.arctan2(np.sin(car_angle), np.cos(car_angle)), np.array([position[0], -position[2]]).astype(np.float64)], dtype=object)
 
         """决策主程序"""

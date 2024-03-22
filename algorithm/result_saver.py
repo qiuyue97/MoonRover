@@ -6,6 +6,31 @@ import datetime
 import os
 import shutil
 
+file_dicts = [
+    {
+        "file": 'map.npy',
+        "start": [10, -15],
+        "goal": [-15, 15],
+        "points": [[-7.06595, 14.7814], [-16.7138, 20.4243], [-22.0564, 14.6231], [-8.86782, 20.5962], [-13.1897, 9.45819]],
+    },
+    {
+        "file": 'TestMap-3.npy',
+        "start": [11, -14],
+        "goal": [15, 15],
+        "points": [[13.5, 13.5], [16.3, 24], [6.9, 15.2], [10.4, 14.6], [14.8, 14.1]],
+    },
+    {
+        "file": 'TestMap4.npy',
+        "start": [-11, 18],
+        "goal": [15, -15],
+    },
+    {
+        "file": 'TestMap5.npy',
+        "start": [-15, -20],
+        "goal": [0, 10],
+    },
+]
+
 def point_clustering(tar_pos):
     # 移除包含NaN的点
     tar_pos = [point for point in tar_pos if not np.isnan(point).any()]
@@ -53,9 +78,7 @@ def point_clustering(tar_pos):
             top_centroids.append(segment_centroids.pop(0))
     return top_centroids
 
-def find_closest_point(target_point):
-    # 五个兴趣点实际坐标
-    points = np.array([[-7.06595, 14.7814], [-16.7138, 20.4243], [-22.0564, 14.6231], [-8.86782, 20.5962], [-13.1897, 9.45819]])
+def find_closest_point(target_point, points):
     # 计算目标点和每个点的距离
     distances = np.sqrt(np.sum((points - target_point)**2, axis=1))
     # 找到最近的点和距离
@@ -107,17 +130,15 @@ def find_closest_point(target_point):
 
 # 创建点集
 
-def result_saver(real_pos):
+def result_saver(real_pos, additional_points):
     counter = [0, 0, 0, 0, 0]
     points = np.load('./temp/tar_all.npy')
     target_pos = point_clustering(points)
     for tar in target_pos:
-        min_distance_index, min_distance = find_closest_point(tar)
+        min_distance_index, min_distance = find_closest_point(tar, np.array(additional_points))
         print(f"Closest point index: {min_distance_index + 1}, Distance: {min_distance}")
         if min_distance <= 2:
             counter[min_distance_index] = 1
-    # 兴趣目标所在点
-    additional_points = [[-7.06595, 14.7814], [-16.7138, 20.4243], [-22.0564, 14.6231], [-8.86782, 20.5962], [-13.1897, 9.45819]]
     # 生成一个颜色映射
     color_range = np.linspace(0, 1, len(points))
     colors = plt.cm.Blues(color_range)  # 使用Blues颜色映射
@@ -136,15 +157,15 @@ def result_saver(real_pos):
         plt.scatter(*point, color='gold')
     # 添加小车实际位置点，颜色为紫色
     plt.scatter(*real_pos, color='purple')
-    # 添加小车应在位置点，颜色为绿色
-    plt.scatter(*[-15, 15], color='green')
+    # # 添加小车应在位置点，颜色为绿色
+    # plt.scatter(*[-15, 15], color='green')
     # 创建一个用于colorbar的归一化对象
     norm = plt.Normalize(color_range.min(), color_range.max())
     # 创建colorbar，使用Blues颜色映射
     sm = plt.cm.ScalarMappable(cmap="Blues", norm=norm)
     sm.set_array([])
     plt.colorbar(sm)
-    plt.show()
+    # plt.show()
     # 获取当前时间
     now = datetime.datetime.now()
     # 格式化为月_日_时_分
@@ -162,4 +183,7 @@ def result_saver(real_pos):
     # shutil.rmtree(dir_path, ignore_errors=True)
 
 
-result_saver(np.array([-15, 15]).astype(np.float64))
+map_id = 1
+goal = file_dicts[map_id]['goal']
+result_saver(np.array(goal).astype(np.float64), file_dicts[map_id]['points'])
+
