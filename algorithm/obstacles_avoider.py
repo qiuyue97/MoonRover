@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from algorithm.route_planer import Dijkstra_main
 
 def roi_finder(depth_image_shape):
     # 指定矩形框的参数
