@@ -5,7 +5,7 @@
 import numpy as np
 from algorithm.builder import build_temp_environment
 from algorithm.map_handler import map_handler
-from algorithm.route_planer import Dijkstra_main, action_judge
+from algorithm.route_planer import planer_main, action_judge
 from algorithm.obstacles_avoider import avoider_main
 from algorithm.box_finder import finder_main, point_clustering
 
@@ -37,7 +37,8 @@ class rover_controller(object):
         if world_time == 0:
             build_temp_environment()
             map_handler(self.map)
-            path = Dijkstra_main(car_status, self.area_B) # 迪杰斯特拉寻路
+            # chose in AStar, Dijkstra, BFS, AStarWithH, AStarWithPun
+            path = planer_main(self.pos_A, self.area_B, 'AStarWithPun')
             rest_path, actions = action_judge(path, car_status, scaling_ratio=25)
             np.save('./algorithm/temp/rest_path', rest_path)
             np.save('./algorithm/temp/actions', actions)
