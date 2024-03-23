@@ -96,7 +96,9 @@ def finder_main(img_rgb, img_depth, car_status, now_step, camera):
                         cv2.circle(res, (cX, cY), 5, (255, 255, 255), -1)
                         # print('点深为：', img_depth[cY, cX])
                         C_coordinates = get_camera_coordinates(cX, cY, img_depth[cY, cX])
-                        all_coordinates.append(coords_shift(C_coordinates, car_status[0], car_status[1], camera))
+                        world_coordinates = coords_shift(C_coordinates, car_status[0], car_status[1], camera)
+                        if np.all(~np.isnan(world_coordinates)):
+                            all_coordinates.append(world_coordinates)
                 cv2.imwrite(f'./algorithm/temp/img/interest_target/res/{camera}_{str(now_step)}.png', res,
                             [cv2.IMWRITE_PNG_COMPRESSION, 0])
                 # # 可视化
