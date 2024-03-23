@@ -5,6 +5,7 @@
 from controller import Camera, RangeFinder, Supervisor
 from algorithm.rover_controller import rover_controller
 import numpy as np
+from algorithm.result_saver import result_saver
 
 if __name__ == '__main__':
     file_dicts = [
@@ -29,7 +30,7 @@ if __name__ == '__main__':
             "goal": [0, 10],
         },
     ]
-    map_id = 1
+    map_id = 0
     map_path = file_dicts[map_id]["file"]
     sup = Supervisor()
     # sup.simulationReset()
@@ -84,10 +85,12 @@ if __name__ == '__main__':
         rotation_field = robot.getField('rotation')
         position = translation_field.getSFVec3f()
         rotation = rotation_field.getSFRotation()
-        if map_path == 'TestMap-3.npy':
+        if map_path in ['TestMap-3.npy', 'TestMap5.npy', 'TestMap4.npy']:
             car_angle = rotation[3] + np.pi / 2
-        else:
+        elif map_path in ['map.npy']:
             car_angle = -rotation[3] + np.pi / 2
+        else:
+            raise NameError
         car_status = np.array([np.arctan2(np.sin(car_angle), np.cos(car_angle)), np.array([position[0], -position[2]]).astype(np.float64)], dtype=object)
 
         """决策主程序"""
@@ -106,3 +109,4 @@ if __name__ == '__main__':
             # sup.exportImage(f"E:/py_program/simenv/real_world/{now_step}.png", 100)
             sup.step(32)
             world_time += 32  # 32ms
+    result_saver(map_id, './algorithm/temp/tar_all.npy')
