@@ -139,6 +139,7 @@ class AStar:
             self.update_progress()
 
             if current == self.goal:
+                print('\n已找到最优路径。')
                 return self.reconstruct_path(came_from, current)
 
             for neighbor in self.get_neighbors(current):
@@ -151,7 +152,7 @@ class AStar:
                     if neighbor not in [i[2] for i in open_set]:
                         heapq.heappush(open_set, (f_score[neighbor], self.nodes_expanded, neighbor))
                         self.nodes_expanded += 1
-
+        print('\n未找到路径。')
         return None  # 如果没有找到路径，则返回None
 
     def reconstruct_path(self, came_from, current):
@@ -235,6 +236,7 @@ class AStarWithPun(AStarWithH):
             self.update_progress()
 
             if current == self.goal:
+                print('\n已找到最优路径。')
                 return self.reconstruct_path(came_from, current)
 
             for neighbor in self.get_neighbors(current):
@@ -248,7 +250,7 @@ class AStarWithPun(AStarWithH):
                     if neighbor not in [i[2] for i in open_set]:
                         heapq.heappush(open_set, (f_score[neighbor], self.nodes_expanded, neighbor))
                         self.nodes_expanded += 1
-
+        print('\n未找到路径。')
         return None  # 如果没有找到路径，则返回None
 
 
@@ -286,9 +288,9 @@ def plot_paths(elevation_map, tri_map, paths_infos, np_start, np_goal):
     ax1.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
     ax1.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
     ax1.legend()
-    ax1.set_title('Paths using AStar, Dijkstra, and BFS')
+    ax1.set_xlabel('(a) Paths planned in a binary map using AStar, Dijkstra, and BFS algorithms', labelpad=20, fontsize=14)
 
-    ax2 = plt.subplot(2, 2, 2)
+    ax2 = plt.subplot(2, 2, 3)
     cmap2 = ListedColormap(['white', 'gray', 'black'])
     bounds2 = [-0.5, 0.5, 1.5, 2.5]
     norm2 = BoundaryNorm(bounds2, cmap2.N)
@@ -303,9 +305,9 @@ def plot_paths(elevation_map, tri_map, paths_infos, np_start, np_goal):
     ax2.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
     ax2.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
     ax2.legend()
-    ax2.set_title('Paths using AStarWithH and AStarWithPun')
+    ax2.set_xlabel('(c) Paths planned in an elevation map using AStarWithH and AStarWithPun algorithms\ndisplayed on a three-dimensional map (gray areas in the map represent penalty zones)', labelpad=20, fontsize=14)
 
-    ax3 = plt.subplot(2, 2, 3)
+    ax3 = plt.subplot(2, 2, 2)
     ax3.imshow(elevation_map, cmap='viridis')
     ax3.axis('on')
     ax3.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
@@ -317,7 +319,7 @@ def plot_paths(elevation_map, tri_map, paths_infos, np_start, np_goal):
     ax3.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
     ax3.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
     ax3.legend()
-    ax3.set_title('Paths using AStar, Dijkstra, and BFS')
+    ax3.set_xlabel('(b) Paths planned in a binary map using AStar, Dijkstra, and BFS algorithms\ndisplayed on an elevation map', labelpad=20, fontsize=14)
 
     ax4 = plt.subplot(2, 2, 4)
     ax4.imshow(elevation_map, cmap='viridis')
@@ -331,7 +333,7 @@ def plot_paths(elevation_map, tri_map, paths_infos, np_start, np_goal):
     ax4.scatter(np_start[1], np_start[0], color=['black'], zorder=5, label='Start')
     ax4.scatter(np_goal[1], np_goal[0], color=['yellow'], zorder=5, label='Goal')
     ax4.legend()
-    ax4.set_title('Paths using AStarWithH and AStarWithPun')
+    ax4.set_xlabel('(d) Paths planned in an elevation map using AStarWithH and AStarWithPun algorithms', labelpad=20, fontsize=14)
 
     plt.savefig(f'./fig/map-{map_id}.png')
     # plt.show()
